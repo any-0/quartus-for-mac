@@ -43,6 +43,9 @@ macos_major=$(sw_vers -productVersion | cut -d. -f1)
 ram_gb=$(($(sysctl -n hw.memsize) / 1073741824))
 [ "$ram_gb" -ge 8 ] || die "This Mac has ${ram_gb} GB of memory; Quartus needs at least 8 GB."
 if [ "$ram_gb" -ge 16 ]; then vm_memory=8192; else vm_memory=4096; fi
+# the builder only runs while installing, when the VM isn't; patchelf on the
+# 3 GB Questa installer needs more than 4 GB
+if [ "$ram_gb" -ge 16 ]; then builder_memory=8192; else builder_memory=6144; fi
 
 if [ ! -e "$STATE/runner" ]; then
   # a previous attempt that stopped partway has already used some of the space
@@ -142,6 +145,7 @@ write_local() { # builder enabled: true/false
   user = "$(id -un)";
   uid = $(id -u);
   vmMemory = $vm_memory;
+  builderMemory = $builder_memory;
   keyboard = "$keyboard";
   screen = { width = $vm_w; height = $vm_h; };
   mac = "$mac";
