@@ -106,6 +106,18 @@ case "${layout_id##*.}" in
   *) keyboard=us ;;
 esac
 
+# VM screen size: the main display in points, minus menu bar, Dock and title bar
+display=$(system_profiler SPDisplaysDataType 2>/dev/null | awk '/Resolution:|UI Looks like:/ {res = $0} /Main Display: Yes/ {print res; exit}')
+screen_w=$(printf '%s' "$display" | sed -n 's/.*: *\([0-9]*\) x \([0-9]*\).*/\1/p')
+screen_h=$(printf '%s' "$display" | sed -n 's/.*: *\([0-9]*\) x \([0-9]*\).*/\2/p')
+case "$display" in
+  *Resolution:*Retina*) screen_w=$((screen_w / 2)) screen_h=$((screen_h / 2)) ;;
+esac
+vm_w=${screen_w:-1440}
+vm_h=$((${screen_h:-900} - 130))
+[ "$vm_w" -ge 1024 ] || vm_w=1024
+[ "$vm_h" -ge 600 ] || vm_h=600
+
 # The VM's network card address is what the Questa license is tied to, so it's
 # generated once and kept across reruns.
 mac=$(sed -n 's/^ *mac = "\(.*\)";/\1/p' "$CONFIG/local.nix" 2>/dev/null || true)
@@ -122,6 +134,7 @@ write_local() { # builder enabled: true/false
   uid = $(id -u);
   vmMemory = $vm_memory;
   keyboard = "$keyboard";
+  screen = { width = $vm_w; height = $vm_h; };
   mac = "$mac";
   builder = $1;
 }

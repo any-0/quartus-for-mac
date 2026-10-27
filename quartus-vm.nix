@@ -62,11 +62,11 @@ let
     systemctl poweroff
   '';
 
-  # vfkit's virtio-gpu defaults to 800x600, which is unusable for Quartus
+  # vfkit's virtio-gpu defaults to 800x600; install.sh sizes it to fit her screen
   vfkit = hostPkgs.writeShellScriptBin "vfkit" ''
     args=()
     for a in "$@"; do
-      [ "$a" = virtio-gpu ] && a="virtio-gpu,width=1440,height=900"
+      [ "$a" = virtio-gpu ] && a="virtio-gpu,width=${toString local.screen.width},height=${toString local.screen.height}"
       args+=("$a")
     done
     exec ${lib.getExe hostPkgs.vfkit} "''${args[@]}"
