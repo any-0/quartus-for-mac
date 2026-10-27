@@ -12,7 +12,7 @@ und wird von Rosetta übersetzt. Das Board wird direkt von macOS aus mit
 Öffne das Terminal, füge diese Zeile ein, drück Return und gib dein Mac-Passwort ein, wenn danach gefragt wird:
 
 ```bash
-mkdir -p ~/quartus-for-mac && curl -fsSL https://github.com/any-0/quartus-for-mac/archive/main.tar.gz | tar -xz --strip-components=1 -C ~/quartus-for-mac && bash ~/quartus-for-mac/install.sh
+curl -fsSL https://raw.githubusercontent.com/any-0/quartus-for-mac/main/setup | bash
 ```
 
 Das dauert 30–90 Minuten, das meiste davon ist Download. Der Mac geht währenddessen nicht in den Ruhezustand.

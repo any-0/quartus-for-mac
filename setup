@@ -1,0 +1,15 @@
+#!/bin/bash
+# Downloads this repo and starts the installer:
+#   curl -fsSL https://raw.githubusercontent.com/any-0/quartus-for-mac/main/setup | bash
+
+# in a function so nothing runs until the whole script has been downloaded
+main() {
+  set -euo pipefail
+  local dir="$HOME/quartus-for-mac"
+  mkdir -p "$dir"
+  curl -fsSL https://github.com/any-0/quartus-for-mac/archive/main.tar.gz | tar -xz --strip-components=1 -C "$dir"
+  # stdin is this script's pipe, so hand the installer the terminal instead
+  exec bash "$dir/install.sh" </dev/tty
+}
+
+main
