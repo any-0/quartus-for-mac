@@ -73,6 +73,12 @@ let
     sudo -n systemctl poweroff
   '';
 
+  # vfkit waits forever for the VM to stop after its window is closed; this makes
+  # closing the window shut the VM down
+  vfkitPatched = hostPkgs.vfkit.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [ ./vfkit-stop-on-close.patch ];
+  });
+
   # vfkit's virtio-gpu defaults to 800x600; install.sh sizes it to fit her screen
   vfkit = hostPkgs.writeShellScriptBin "vfkit" ''
     args=()
@@ -80,7 +86,7 @@ let
       [ "$a" = virtio-gpu ] && a="virtio-gpu,width=${toString local.screen.width},height=${toString local.screen.height}"
       args+=("$a")
     done
-    exec ${lib.getExe hostPkgs.vfkit} "''${args[@]}"
+    exec ${lib.getExe vfkitPatched} "''${args[@]}"
   '';
 in
 {

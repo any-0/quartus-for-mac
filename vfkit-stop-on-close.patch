@@ -1,0 +1,27 @@
+diff --git a/cmd/vfkit/main.go b/cmd/vfkit/main.go
+index bea8aab..e935b08 100644
+--- a/cmd/vfkit/main.go
++++ b/cmd/vfkit/main.go
+@@ -293,6 +293,22 @@ func runVirtualMachine(vmConfig *config.VirtualMachine, vm *vf.VirtualMachine) e
+ 		}
+ 	}
+ 
++	// The GUI window was closed. If the guest is still running, nothing would
++	// ever stop it and vfkit would hang here; ask it to shut down, then force it.
++	if vm.State() == vz.VirtualMachineStateRunning {
++		log.Infof("window closed, stopping VM")
++		if ok, _ := vm.RequestStop(); ok {
++			select {
++			case err := <-errCh:
++				return err
++			case <-time.After(5 * time.Second):
++			}
++		}
++		if err := vm.Stop(); err != nil {
++			return err
++		}
++	}
++
+ 	return <-errCh
+ }
+ 
