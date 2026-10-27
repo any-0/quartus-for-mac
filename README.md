@@ -32,7 +32,9 @@ während der Installation (danach belegt alles etwa 25 GB).
 
 ## Versuch 1
 
-Ein Treiber muss nicht installiert werden. Ob das Board erkannt wird, zeigt dieser Befehl im Terminal:
+Für die Aufgabe, den USB-Treiber zu installieren und zu prüfen, ob das Board unter Hardware Setup erkannt
+wird: Ein Treiber ist nicht nötig, und statt Hardware Setup in Quartus zeigt dieser Befehl im Terminal das
+erkannte Board an:
 
 ```bash
 openFPGALoader --detect
