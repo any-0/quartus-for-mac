@@ -7,7 +7,10 @@ main() {
   set -euo pipefail
   local dir="$HOME/quartus-for-mac"
   mkdir -p "$dir"
-  curl -fsSL https://github.com/any-0/quartus-for-mac/archive/main.tar.gz | tar -xz --strip-components=1 -C "$dir"
+  # by commit, since GitHub can serve a stale main.tar.gz for a few minutes after a push
+  local rev
+  rev=$(curl -fsSL -H 'Accept: application/vnd.github.sha' https://api.github.com/repos/any-0/quartus-for-mac/commits/main || echo main)
+  curl -fsSL "https://github.com/any-0/quartus-for-mac/archive/$rev.tar.gz" | tar -xz --strip-components=1 -C "$dir"
   # stdin is this script's pipe, so hand the installer the terminal instead
   exec bash "$dir/install.sh" </dev/tty
 }
