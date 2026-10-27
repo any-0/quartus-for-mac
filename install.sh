@@ -45,7 +45,7 @@ ram_gb=$(($(sysctl -n hw.memsize) / 1073741824))
 if [ "$ram_gb" -ge 16 ]; then vm_memory=8192; else vm_memory=4096; fi
 
 if [ ! -e "$STATE/runner" ]; then
-  free_gb=$(df -g / | awk 'NR==2 {print $4}')
+  free_gb=$(/bin/df -g / | awk 'NR==2 {print $4}')
   [ "$free_gb" -ge 45 ] || die "Not enough free disk space: ${free_gb} GB free, about 45 GB needed. Free some space (Apple menu > System Settings > General > Storage) and run this again."
 fi
 
