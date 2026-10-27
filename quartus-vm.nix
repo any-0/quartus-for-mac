@@ -48,8 +48,19 @@ let
 
   questaLicense = "${home}/.questa/license.dat";
 
-  # what the autologin session runs: Quartus, then power off when it's closed
+  # Openbox with its default config, plus: normal windows open maximized, and no
+  # minimize button, since there's no taskbar to bring a minimized window back
+  openboxConfig = pkgs.runCommand "openbox-rc.xml" { } ''
+    sed \
+      -e 's|<titleLayout>NLIMC</titleLayout>|<titleLayout>NLMC</titleLayout>|' \
+      -e 's|</applications>|<application type="normal"><maximized>yes</maximized></application></applications>|' \
+      ${pkgs.openbox}/etc/xdg/openbox/rc.xml > $out
+  '';
+
+  # the X session: just Quartus under Openbox; power off when Quartus is closed
   quartus-session = pkgs.writeShellScript "quartus-session" ''
+    ${pkgs.openbox}/bin/openbox --config-file ${openboxConfig} &
+
     # newest Questa license dropped into ~/FPGA (see Questa-Lizenz.txt there)
     lic=$(ls -t ${home}/FPGA/*.dat 2>/dev/null | head -n1)
     if [ -n "$lic" ]; then
@@ -59,7 +70,7 @@ let
 
     cd ${home}/FPGA || cd ${home}
     ${quartus}/bin/quartus
-    systemctl poweroff
+    sudo -n systemctl poweroff
   '';
 
   # vfkit's virtio-gpu defaults to 800x600; install.sh sizes it to fit her screen
@@ -152,23 +163,18 @@ in
   };
   security.sudo.wheelNeedsPassword = false;
 
+  # No display manager: LightDM only autologins uids >= 1000, and the uid has to
+  # match the Mac's. Instead the console logs in by itself and starts X.
+  services.getty.autologinUser = user;
   services.xserver = {
     enable = true;
-    desktopManager.xfce.enable = true;
+    displayManager.startx.enable = true;
     xkb.layout = local.keyboard;
   };
-  services.displayManager.autoLogin = {
-    enable = true;
-    inherit user;
-  };
-  # no screen locker or screensaver getting in the way
-  services.xserver.desktopManager.xfce.enableScreensaver = false;
-
-  environment.etc."xdg/autostart/quartus.desktop".text = ''
-    [Desktop Entry]
-    Type=Application
-    Name=Quartus
-    Exec=${quartus-session}
+  environment.loginShellInit = ''
+    if [ "$(tty)" = /dev/tty1 ] && [ -z "$DISPLAY" ]; then
+      exec startx ${quartus-session}
+    fi
   '';
 
   systemd.user.services.sof-to-rbf = {
