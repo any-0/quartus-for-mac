@@ -1,55 +1,55 @@
-# Quartus for Mac
+# Quartus für Mac
 
-Intel Quartus Prime Lite plus a DE0-Nano programmer on Apple Silicon Macs, with one command.
+Intel Quartus Prime Lite und ein Programmierer für das DE0-Nano auf Macs mit Apple-Chip, mit einem einzigen Befehl.
 
-Quartus only exists for x86 Windows and Linux, so this runs it in a small NixOS VM
-(Apple's Virtualization.framework, via [microvm.nix](https://github.com/microvm-nix/microvm.nix) and vfkit)
-and translates it with Rosetta. The board is programmed from macOS with
-[openFPGALoader](https://github.com/trabucayre/openFPGALoader), because the VM can't see USB devices.
+Quartus gibt es nur für x86-Windows und -Linux. Deshalb läuft es hier in einer kleinen NixOS-VM
+(Apples Virtualization.framework, über [microvm.nix](https://github.com/microvm-nix/microvm.nix) und vfkit)
+und wird von Rosetta übersetzt. Das Board wird direkt von macOS aus mit
+[openFPGALoader](https://github.com/trabucayre/openFPGALoader) programmiert, weil die VM keine USB-Geräte sieht.
 
-## Install
+## Installation
 
-Open Terminal, paste this, press Return, and type your Mac password when asked:
+Öffne das Terminal, füge diese Zeile ein, drück Return und gib dein Mac-Passwort ein, wenn danach gefragt wird:
 
 ```bash
 mkdir -p ~/quartus-for-mac && curl -fsSL https://github.com/any-0/quartus-for-mac/archive/main.tar.gz | tar -xz --strip-components=1 -C ~/quartus-for-mac && bash ~/quartus-for-mac/install.sh
 ```
 
-It takes 30–90 minutes, mostly downloading. The Mac stays awake while it runs.
-If it stops partway, run the same line again.
+Das dauert 30–90 Minuten, das meiste davon ist Download. Der Mac geht währenddessen nicht in den Ruhezustand.
+Falls es zwischendurch abbricht, führ einfach dieselbe Zeile noch einmal aus.
 
-**Needs:** a Mac with an Apple chip (M1 or newer), macOS 14+, 8 GB of memory, about 45 GB free disk space.
+**Voraussetzungen:** ein Mac mit Apple-Chip (M1 oder neuer), macOS 14 oder neuer, 8 GB Arbeitsspeicher und etwa 45 GB freier Speicherplatz.
 
-## Using it
+## Benutzung
 
-- **Quartus** (in the Dock) opens Quartus. Closing Quartus closes its window.
-- Save projects in the **FPGA** folder in your home folder. It's the same folder on the Mac and in Quartus.
-- After compiling, plug in the board and click **Program DE0-Nano**:
-  - **Load**: the design runs until the board is unplugged.
-  - **Save**: the design is written to the board's flash and stays there.
+- **Quartus** (im Dock) öffnet Quartus. Wenn du Quartus schließt, schließt sich auch das Fenster.
+- Speichere deine Projekte im Ordner **FPGA** in deinem Benutzerordner. Es ist derselbe Ordner auf dem Mac und in Quartus.
+- Nach dem Kompilieren das Board per USB anschließen und auf **Program DE0-Nano** klicken:
+  - **Load**: Das Design läuft, bis das Board vom Strom getrennt wird.
+  - **Save**: Das Design wird in den Flash-Speicher des Boards geschrieben und bleibt dort.
 
-## What it sets up
+## Was eingerichtet wird
 
-- Rosetta, if it's missing
-- [Nix](https://github.com/NixOS/nix-installer) (upstream, no account needed)
-- [nix-darwin](https://github.com/nix-darwin/nix-darwin) with nixpkgs' `darwin.linux-builder-vz`, a Linux builder
-  that builds x86_64 packages through Rosetta
-- A NixOS VM with XFCE that logs in automatically and starts Quartus Prime Lite 25.1 (Cyclone IV only).
-  Every compiled `.sof` also gets an `.rbf` written next to it, which the programmer uses.
-- The two apps in `~/Applications`, added to the Dock
+- Rosetta, falls es noch fehlt
+- [Nix](https://github.com/NixOS/nix-installer) (die offizielle Version, kein Konto nötig)
+- [nix-darwin](https://github.com/nix-darwin/nix-darwin) mit `darwin.linux-builder-vz` aus nixpkgs, einem Linux-Builder,
+  der x86_64-Pakete über Rosetta baut
+- Eine NixOS-VM mit XFCE, die sich automatisch anmeldet und Quartus Prime Lite 25.1 startet (nur Cyclone IV).
+  Zu jeder kompilierten `.sof`-Datei wird automatisch eine `.rbf`-Datei daneben geschrieben, die der Programmierer verwendet.
+- Die beiden Apps in `~/Applications`, im Dock abgelegt
 
-Configuration ends up in `~/.config/quartus-mac`, and the VM's disk in `~/.local/share/quartus-vm`.
+Die Konfiguration liegt danach in `~/.config/quartus-mac`, die Festplatte der VM in `~/.local/share/quartus-vm`.
 
-## Limitations
+## Einschränkungen
 
-- No Questa simulator: it needs 32-bit x86, which Rosetta can't run. Icarus Verilog and GTKWave are installed in the VM instead.
-- No Signal Tap or other live JTAG debugging from Quartus, since the VM has no USB access.
-- Board files are set up for the DE0-Nano (`openFPGALoader -b de0nano`).
+- Kein Questa-Simulator: Er braucht 32-Bit-x86, und das kann Rosetta nicht ausführen. Stattdessen sind Icarus Verilog und GTKWave in der VM installiert.
+- Kein Signal Tap und kein anderes Live-JTAG-Debugging aus Quartus heraus, weil die VM keinen USB-Zugriff hat.
+- Der Programmierer ist auf das DE0-Nano eingestellt (`openFPGALoader -b de0nano`).
 
-## Uninstall
+## Deinstallation
 
 ```bash
 bash ~/.config/quartus-mac/uninstall.sh
 ```
 
-This removes the apps, the VM, nix-darwin and Nix. Projects in `~/FPGA` are kept.
+Das entfernt die Apps, die VM, nix-darwin und Nix. Projekte in `~/FPGA` bleiben erhalten.
