@@ -45,8 +45,11 @@ ram_gb=$(($(sysctl -n hw.memsize) / 1073741824))
 if [ "$ram_gb" -ge 16 ]; then vm_memory=8192; else vm_memory=4096; fi
 
 if [ ! -e "$STATE/runner" ]; then
+  # a previous attempt that stopped partway has already used some of the space
+  need_gb=60
+  [ -e "$CONFIG/local.nix" ] && need_gb=30
   free_gb=$(/bin/df -g / | awk 'NR==2 {print $4}')
-  [ "$free_gb" -ge 60 ] || die "Not enough free disk space: ${free_gb} GB free, about 60 GB needed. Free some space (Apple menu > System Settings > General > Storage) and run this again."
+  [ "$free_gb" -ge "$need_gb" ] || die "Not enough free disk space: ${free_gb} GB free, about ${need_gb} GB needed. Free some space (Apple menu > System Settings > General > Storage) and run this again."
 fi
 
 [ ! -e /usr/local/bin/determinate-nixd ] || die "This Mac has Determinate Nix installed, which this installer doesn't support."
@@ -69,6 +72,12 @@ fi
 # --- Nix --------------------------------------------------------------------
 
 if [ ! -x "$NIX" ]; then
+  # An install that stopped partway leaves a receipt, and the installer then
+  # reports success without finishing; remove the leftovers first.
+  if [ -e /nix/receipt.json ] && [ -x /nix/nix-installer ]; then
+    say "Cleaning up an unfinished Nix installation..."
+    sudo /nix/nix-installer uninstall --no-confirm
+  fi
   say "Installing Nix (the package manager everything else is built with)..."
   curl --proto '=https' --tlsv1.2 -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install --no-confirm
 fi
@@ -154,16 +163,25 @@ for f in /etc/nix/nix.conf /etc/bashrc /etc/zshrc /etc/zshenv /etc/zprofile /etc
 done
 sudo -H "$NIX" "${NIXFLAGS[@]}" run "$CONFIG#darwin-rebuild" -- switch --flake "$CONFIG#quartus"
 
+wait_for_builder() {
+  for _ in $(seq 1 60); do
+    if sudo ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new linux-builder true >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
 say "Waiting for the Linux builder to start..."
-builder_up=
-for _ in $(seq 1 60); do
-  if sudo ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new linux-builder true >/dev/null 2>&1; then
-    builder_up=1
-    break
-  fi
-  sleep 5
-done
-[ -n "$builder_up" ] || die "The Linux builder didn't start. Restarting the Mac and running this again usually fixes it."
+if ! wait_for_builder; then
+  # its disk can be left broken by a power cut or crash mid-build; start over with a fresh one
+  say "Restarting the Linux builder with a fresh disk..."
+  sudo launchctl bootout system/org.nixos.linux-builder 2>/dev/null || true
+  sudo rm -f /var/lib/linux-builder/*.qcow2 /var/lib/linux-builder/*.img
+  sudo launchctl bootstrap system /Library/LaunchDaemons/org.nixos.linux-builder.plist
+  wait_for_builder || die "The Linux builder didn't start. Restarting the Mac and running this again usually fixes it."
+fi
 
 # --- the VM -----------------------------------------------------------------
 
