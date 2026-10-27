@@ -94,9 +94,8 @@ set -u
 say "Writing the configuration..."
 mkdir -p "$CONFIG"
 if [ "$SRC" != "$CONFIG" ]; then
-  cp "$SRC"/flake.nix "$SRC"/flake.lock "$SRC"/darwin.nix "$SRC"/quartus-vm.nix "$SRC"/install.sh "$SRC"/uninstall.sh "$CONFIG/"
-  mkdir -p "$CONFIG/icons"
-  cp "$SRC"/icons/*.icns "$CONFIG/icons/"
+  # everything except a local.nix (that's written below) and git metadata
+  (cd "$SRC" && tar --exclude ./local.nix --exclude ./.git -cf - .) | (cd "$CONFIG" && tar -xf -)
 fi
 
 # Linux keyboard layout matching the Mac's
