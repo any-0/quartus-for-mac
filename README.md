@@ -32,15 +32,11 @@ während der Installation (danach belegt alles etwa 25 GB).
 
 ## Versuch 1
 
-Ein USB-Treiber muss nicht installiert werden, und Quartus zeigt das Board unter Hardware Setup nicht an,
-weil es vom Mac aus programmiert wird. Dass das Board erkannt wird, lässt sich stattdessen im Terminal zeigen:
+Ein Treiber muss nicht installiert werden. Ob das Board erkannt wird, zeigt dieser Befehl im Terminal:
 
 ```bash
 openFPGALoader --detect
 ```
-
-Mit angeschlossenem Board erscheint dort der Cyclone-IV-FPGA des DE0-Nano, als Modell wird
-`EP3C25/EP4CE22/10CL025` angezeigt (diese Chips teilen sich eine Kennung).
 
 ## Technisches
 
