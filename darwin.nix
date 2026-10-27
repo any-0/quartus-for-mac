@@ -47,6 +47,8 @@ in
       "aarch64-linux"
       "x86_64-linux"
     ];
+    # defaults to 1 core, which makes compiling through Rosetta crawl
+    config.virtualisation.cores = 4;
     config.virtualisation.darwin-builder = {
       memorySize = 4 * 1024;
       # sparse; the Quartus build needs more than the 20 GiB default
