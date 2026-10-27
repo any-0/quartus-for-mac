@@ -77,9 +77,6 @@ in
   networking.hostName = "quartus-vm";
   system.stateVersion = "25.11";
 
-  # for the app icon on the Mac
-  system.build.quartusIcon = "${quartus.unwrapped}/quartus/adm/quartusii.png";
-
   microvm = {
     hypervisor = "vfkit";
     vmHostPackages = hostPkgs;
@@ -91,6 +88,9 @@ in
       package = vfkit;
       rosetta.enable = true;
     };
+
+    # absolute: the app starts the VM with / as working directory
+    socket = "${stateDir}/quartus-vm.sock";
 
     preStart = ''
       mkdir -p ${stateDir} ${projectDir}

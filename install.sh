@@ -95,6 +95,8 @@ say "Writing the configuration..."
 mkdir -p "$CONFIG"
 if [ "$SRC" != "$CONFIG" ]; then
   cp "$SRC"/flake.nix "$SRC"/flake.lock "$SRC"/darwin.nix "$SRC"/quartus-vm.nix "$SRC"/install.sh "$SRC"/uninstall.sh "$CONFIG/"
+  mkdir -p "$CONFIG/icons"
+  cp "$SRC"/icons/*.icns "$CONFIG/icons/"
 fi
 
 # Linux keyboard layout matching the Mac's
@@ -204,13 +206,13 @@ sudo -H /run/current-system/sw/bin/darwin-rebuild switch --flake "$CONFIG#quartu
 
 say "Creating the apps..."
 
-make_app() { # name, id, script, [png icon]
+make_app() { # name, id, script, icon
   local app="$APPS/$1.app"
   rm -rf "$app"
   mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
   printf '#!/bin/bash\n%s\n' "$3" >"$app/Contents/MacOS/run"
   chmod +x "$app/Contents/MacOS/run"
-  if [ -n "${4:-}" ] && sips -s format icns "$4" --out "$app/Contents/Resources/icon.icns" >/dev/null 2>&1; then :; fi
+  cp "$4" "$app/Contents/Resources/icon.icns"
   cat >"$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -226,15 +228,18 @@ make_app() { # name, id, script, [png icon]
 EOF
 }
 
-quartus_icon=$("$NIX" "${NIXFLAGS[@]}" eval --raw "$CONFIG#nixosConfigurations.quartus-vm.config.system.build.quartusIcon" 2>/dev/null || true)
-
 make_app "Quartus" quartus '
 if pgrep -qf "quartus-vm/home.img"; then
   osascript -e "display alert \"Quartus is already open.\""
   exit 0
 fi
-exec "$HOME/.local/share/quartus-vm/runner/bin/microvm-run"
-' "$quartus_icon"
+cd "$HOME/.local/share/quartus-vm" || exit 1
+log="$HOME/Library/Logs/quartus-vm.log"
+start=$SECONDS
+if ! ./runner/bin/microvm-run >"$log" 2>&1 && [ $((SECONDS - start)) -lt 60 ]; then
+  osascript -e "display alert \"Quartus could not start\" message \"Details are in ~/Library/Logs/quartus-vm.log\""
+fi
+' "$CONFIG/icons/quartus.icns"
 
 make_app "Program DE0-Nano" program-de0 '
 alert() { osascript - "$1" "$2" <<EOF >/dev/null
@@ -264,7 +269,7 @@ else
 
 $(printf "%s" "$out" | tail -n 4)"
 fi
-'
+' "$CONFIG/icons/program.icns"
 
 # Dock icons, once
 for name in "Quartus" "Program DE0-Nano"; do
