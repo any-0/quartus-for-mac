@@ -19,6 +19,9 @@ let
   stateDir = "${macHome}/.local/share/quartus-vm";
   projectDir = "${macHome}/FPGA";
 
+  # shared with the Mac as ~/.local/share/quartus-vm/logs
+  logDir = "/mnt/logs";
+
   user = "student";
   home = "/home/${user}";
 
@@ -69,7 +72,8 @@ let
     fi
 
     cd ${home}/FPGA || cd ${home}
-    ${quartus}/bin/quartus
+    ${quartus}/bin/quartus > ${logDir}/quartus.log 2>&1
+    echo "quartus exited with $?" >> ${logDir}/quartus.log
     sudo -n systemctl poweroff
   '';
 
@@ -110,8 +114,14 @@ in
     socket = "${stateDir}/quartus-vm.sock";
 
     preStart = ''
-      mkdir -p ${stateDir} ${projectDir}
+      mkdir -p ${stateDir}/logs ${projectDir}
     '';
+
+    # boot and systemd messages go to a log file on the Mac instead of the screen
+    vfkit.extraArgs = [
+      "--device"
+      "virtio-serial,logFilePath=${stateDir}/logs/console.log"
+    ];
 
     shares = [
       {
@@ -120,6 +130,12 @@ in
         tag = "ro-store";
         source = "/nix/store";
         mountPoint = "/nix/.ro-store";
+      }
+      {
+        proto = "virtiofs";
+        tag = "logs";
+        source = "${stateDir}/logs";
+        mountPoint = logDir;
       }
       {
         proto = "virtiofs";
@@ -152,6 +168,10 @@ in
 
   environment.sessionVariables.SALT_LICENSE_SERVER = questaLicense;
 
+  # the last console= is where systemd writes its status messages
+  boot.kernelParams = [ "console=hvc0" ];
+  boot.initrd.kernelModules = [ "virtio_console" ];
+
   # mount before activation creates the home directory
   fileSystems."/home".neededForBoot = true;
 
@@ -179,7 +199,7 @@ in
   };
   environment.loginShellInit = ''
     if [ "$(tty)" = /dev/tty1 ] && [ -z "$DISPLAY" ]; then
-      exec startx ${quartus-session}
+      exec startx ${quartus-session} > ${logDir}/x.log 2>&1
     fi
   '';
 

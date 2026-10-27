@@ -233,10 +233,13 @@ if pgrep -qf "quartus-vm/home.img"; then
   exit 0
 fi
 cd "$HOME/.local/share/quartus-vm" || exit 1
-log="$HOME/Library/Logs/quartus-vm.log"
+mkdir -p logs
 start=$SECONDS
-if ! ./runner/bin/microvm-run >"$log" 2>&1 && [ $((SECONDS - start)) -lt 60 ]; then
-  osascript -e "display alert \"Quartus could not start\" message \"Details are in ~/Library/Logs/quartus-vm.log\""
+./runner/bin/microvm-run >logs/vm.log 2>&1
+# Quartus closes the VM when it exits, so a VM that ends right away means it didn't start
+if [ $((SECONDS - start)) -lt 60 ]; then
+  osascript -e "display alert \"Quartus could not start\" message \"The logs are in the folder that opens next.\""
+  open logs
 fi
 ' "$CONFIG/icons/quartus.icns"
 
