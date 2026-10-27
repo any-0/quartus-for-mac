@@ -187,7 +187,8 @@ fi
 
 say "Building Quartus, Questa and the Linux VM. This is the long part (downloads ~8 GB)..."
 mkdir -p "$STATE" "$HOME/FPGA"
-"$NIX" "${NIXFLAGS[@]}" build "$CONFIG#quartus-vm" -o "$STATE/runner"
+# -L shows build output, including download progress and speed
+"$NIX" "${NIXFLAGS[@]}" build -L "$CONFIG#quartus-vm" -o "$STATE/runner"
 
 # The builder holds 4 GB of memory and a large disk image while it runs, and
 # isn't needed again until the next install. Switching it off deletes both.
