@@ -68,8 +68,36 @@ Open differences between the working and the failing case:
 2. vfkit VM vs the vzvm builder VM (e.g. Rosetta caching options on the share).
 3. The `quartus` GUI executable vs `quartus_sh` (unlikely, same init path).
 
-The dev Mac is reproducing with the `quartus` executable inside the builder VM right now; check
-`git log` / this file for a result before going too far.
+### Results from the dev Mac (A18 Pro, macOS 27)
+
+Not reproducible there. Same Quartus build (`quartus-prime-lite-unwrapped`, Cyclone IV only, without
+Questa), run inside the linux-builder NixOS system:
+
+| VM | Rosetta share | Quartus files on | `quartus_sh --version` | `quartus` (no display) | `quartus` (Xvfb) |
+|---|---|---|---|---|---|
+| vzvm | with translation cache | guest disk | ok | exit 134 (no display, expected) | runs until killed after 90 s |
+| vfkit 0.6.3 | plain (like the real VM) | guest disk | ok | exit 134 | not tried |
+
+So neither the `quartus` executable, nor vfkit's Rosetta setup, nor the M4-class CPU explains it. What's
+left that differs on the target Mac:
+
+1. **macOS 26 vs 27** (Rosetta version).
+2. **Quartus is read from the Mac's `/nix/store` over virtiofs** (case-insensitive APFS) instead of a
+   guest disk. Only one case collision exists in the Quartus tree (`quartus/linux64/perl/lib/5.38.2/pod`),
+   so name mangling isn't it, but file contents or mmap over virtiofs could be.
+
+Check 2 first, it's cheap. Inside the VM (or on the Mac, same files) these should match the working
+build (the target's unwrapped path differs because it includes Questa; these files shouldn't):
+
+```
+4b855985b4f628c9479a0c989797c634049ed8cb82d51bc6a633209096047dc4  quartus/linux64/libccl_sqlite3.so
+7f3b4a4fc095e77711197fc0127575600956fd455e02cb62a5e8a09e3c54132f  quartus/linux64/libccl_msg.so
+d7d17071f47726583b45ed7d2ed6a86fbc55a4946ab53919c7a9cab7d72f4b01  quartus/linux64/quartus
+```
+
+If they match on the Mac but Quartus still crashes, test whether running from a guest-local copy
+(e.g. copy `quartus/linux64` to tmpfs and point `LD_LIBRARY_PATH` at it) avoids the crash. If it does,
+the fix is to not run Quartus straight off the virtiofs store.
 
 ## Suggested first steps
 

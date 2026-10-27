@@ -1,14 +1,25 @@
 diff --git a/cmd/vfkit/main.go b/cmd/vfkit/main.go
-index bea8aab..e935b08 100644
+index bea8aab..d576d4e 100644
 --- a/cmd/vfkit/main.go
 +++ b/cmd/vfkit/main.go
-@@ -293,6 +293,22 @@ func runVirtualMachine(vmConfig *config.VirtualMachine, vm *vf.VirtualMachine) e
+@@ -281,8 +281,10 @@ func runVirtualMachine(vmConfig *config.VirtualMachine, vm *vf.VirtualMachine) e
+ 		}
+ 	}()
+ 
++	usedGUI := false
+ 	for _, gpuDev := range vmConfig.VirtioGPUDevices() {
+ 		if gpuDev.UsesGUI {
++			usedGUI = true
+ 			runtime.LockOSThread()
+ 			err := vm.StartGraphicApplication(float64(gpuDev.Width), float64(gpuDev.Height))
+ 			runtime.UnlockOSThread()
+@@ -293,6 +295,22 @@ func runVirtualMachine(vmConfig *config.VirtualMachine, vm *vf.VirtualMachine) e
  		}
  	}
  
 +	// The GUI window was closed. If the guest is still running, nothing would
 +	// ever stop it and vfkit would hang here; ask it to shut down, then force it.
-+	if vm.State() == vz.VirtualMachineStateRunning {
++	if usedGUI && vm.State() == vz.VirtualMachineStateRunning {
 +		log.Infof("window closed, stopping VM")
 +		if ok, _ := vm.RequestStop(); ok {
 +			select {
