@@ -46,7 +46,7 @@ if [ "$ram_gb" -ge 16 ]; then vm_memory=8192; else vm_memory=4096; fi
 
 if [ ! -e "$STATE/runner" ]; then
   free_gb=$(/bin/df -g / | awk 'NR==2 {print $4}')
-  [ "$free_gb" -ge 45 ] || die "Not enough free disk space: ${free_gb} GB free, about 45 GB needed. Free some space (Apple menu > System Settings > General > Storage) and run this again."
+  [ "$free_gb" -ge 60 ] || die "Not enough free disk space: ${free_gb} GB free, about 60 GB needed. Free some space (Apple menu > System Settings > General > Storage) and run this again."
 fi
 
 [ ! -e /usr/local/bin/determinate-nixd ] || die "This Mac has Determinate Nix installed, which this installer doesn't support."
@@ -106,15 +106,28 @@ case "${layout_id##*.}" in
   *) keyboard=us ;;
 esac
 
-cat >"$CONFIG/local.nix" <<EOF
+# The VM's network card address is what the Questa license is tied to, so it's
+# generated once and kept across reruns.
+mac=$(sed -n 's/^ *mac = "\(.*\)";/\1/p' "$CONFIG/local.nix" 2>/dev/null || true)
+if [ -z "$mac" ]; then
+  mac=$(printf '02:%02x:%02x:%02x:%02x:%02x' $((RANDOM % 256)) $((RANDOM % 256)) $((RANDOM % 256)) $((RANDOM % 256)) $((RANDOM % 256)))
+fi
+nic_id=$(printf '%s' "$mac" | tr -d :)
+
+write_local() { # builder enabled: true/false
+  cat >"$CONFIG/local.nix" <<EOF
 # written by install.sh
 {
   user = "$(id -un)";
   uid = $(id -u);
   vmMemory = $vm_memory;
   keyboard = "$keyboard";
+  mac = "$mac";
+  builder = $1;
 }
 EOF
+}
+write_local true
 
 # --- nix-darwin -------------------------------------------------------------
 
@@ -141,9 +154,15 @@ done
 
 # --- the VM -----------------------------------------------------------------
 
-say "Building Quartus and its Linux VM. This is the long part (downloads ~5 GB)..."
+say "Building Quartus, Questa and the Linux VM. This is the long part (downloads ~8 GB)..."
 mkdir -p "$STATE" "$HOME/FPGA"
 "$NIX" "${NIXFLAGS[@]}" build "$CONFIG#quartus-vm" -o "$STATE/runner"
+
+# The builder holds 4 GB of memory and a large disk image while it runs, and
+# isn't needed again until the next install. Switching it off deletes both.
+say "Switching off the Linux builder..."
+write_local false
+sudo -H /run/current-system/sw/bin/darwin-rebuild switch --flake "$CONFIG#quartus"
 
 # --- apps -------------------------------------------------------------------
 
@@ -219,6 +238,22 @@ for name in "Quartus" "Program DE0-Nano"; do
   fi
 done
 killall Dock 2>/dev/null || true
+
+# Questa (the simulator) needs a free license from Altera, tied to the VM's network card
+cat >"$HOME/FPGA/Questa-Lizenz.txt" <<EOF
+Für die Simulation (Questa) braucht man eine kostenlose Lizenz von Altera.
+
+1. Bei Altera ein Konto anlegen und im "Self-Service Licensing Center" (SSLC) anmelden.
+2. Die kostenlose Lizenz "Questa - Altera FPGA Starter Edition" (SW-QUESTA) als
+   FIXED-Lizenz mit 1 Platz anfordern.
+3. Einen neuen Computer anlegen und als NIC ID diese Nummer angeben:
+
+   $nic_id
+
+4. Die Lizenzdatei (endet auf .dat) in diesen FPGA-Ordner legen und Quartus neu öffnen.
+
+Die Lizenz läuft nach 12 Monaten ab und kann dann auf dieselbe Weise erneuert werden.
+EOF
 
 trap - ERR
 say "All done!"

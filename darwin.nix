@@ -39,9 +39,9 @@ in
   ];
 
   # nixpkgs' Linux builder on Virtualization.framework; x86_64-linux builds (Quartus)
-  # go through Rosetta. Only does work while something is being built.
+  # go through Rosetta. install.sh only enables it while building the VM.
   nix.linux-builder = {
-    enable = true;
+    enable = local.builder;
     package = pkgs.darwin.linux-builder-vz;
     systems = [
       "aarch64-linux"

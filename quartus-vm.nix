@@ -27,30 +27,36 @@ let
     config.allowUnfree = true;
   };
 
-  # Cyclone IV only (DE0-Nano). Questa is dropped: it needs 32-bit x86, which Rosetta can't run.
-  quartusArgs = {
+  # Cyclone IV only (DE0-Nano)
+  supportedDevices = [ "Cyclone IV" ];
+  quartus = pkgsX86.quartus-prime-lite.override {
+    inherit supportedDevices;
+    # Questa itself is 64-bit; this only drops the 32-bit libraries the wrapper would
+    # add for it, which Rosetta can't run
     withQuesta = false;
-    supportedDevices = [ "Cyclone IV" ];
+    # only used by the opt-in reproducible-build mode; the real i686 one can't be built under Rosetta
+    pkgsi686Linux = pkgsX86.pkgsi686Linux // {
+      inherit (pkgsX86) libfaketime;
+    };
+    unwrapped = pkgsX86.quartus-prime-lite.unwrapped.override {
+      inherit supportedDevices;
+      withQuesta = true;
+      # an x86_64 unstick can't load its seccomp filter when translated, so use the native one
+      inherit (pkgs) unstick;
+    };
   };
-  quartus = pkgsX86.quartus-prime-lite.override (
-    quartusArgs
-    // {
-      # only used by the opt-in reproducible-build mode; the real i686 one can't be built under Rosetta
-      pkgsi686Linux = pkgsX86.pkgsi686Linux // {
-        inherit (pkgsX86) libfaketime;
-      };
-      unwrapped = pkgsX86.quartus-prime-lite.unwrapped.override (
-        quartusArgs
-        // {
-          # an x86_64 unstick can't load its seccomp filter when translated, so use the native one
-          inherit (pkgs) unstick;
-        }
-      );
-    }
-  );
+
+  questaLicense = "${home}/.questa/license.dat";
 
   # what the autologin session runs: Quartus, then power off when it's closed
   quartus-session = pkgs.writeShellScript "quartus-session" ''
+    # newest Questa license dropped into ~/FPGA (see Questa-Lizenz.txt there)
+    lic=$(ls -t ${home}/FPGA/*.dat 2>/dev/null | head -n1)
+    if [ -n "$lic" ]; then
+      mkdir -p ${home}/.questa
+      cp "$lic" ${questaLicense}
+    fi
+
     cd ${home}/FPGA || cd ${home}
     ${quartus}/bin/quartus
     systemctl poweroff
@@ -115,8 +121,19 @@ in
       }
     ];
 
+    # fixed address, since the Questa license is tied to it
+    interfaces = [
+      {
+        type = "user";
+        id = "net0";
+        mac = local.mac;
+      }
+    ];
+
     registerClosure = false;
   };
+
+  environment.sessionVariables.SALT_LICENSE_SERVER = questaLicense;
 
   # mount before activation creates the home directory
   fileSystems."/home".neededForBoot = true;
@@ -176,7 +193,7 @@ in
 
   environment.systemPackages = [
     quartus
-    pkgs.iverilog # native simulation, since Questa is out
+    pkgs.iverilog
     pkgs.gtkwave
   ];
 }
