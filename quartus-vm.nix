@@ -41,12 +41,23 @@ let
     pkgsi686Linux = pkgsX86.pkgsi686Linux // {
       inherit (pkgsX86) libfaketime;
     };
-    unwrapped = pkgsX86.quartus-prime-lite.unwrapped.override {
-      inherit supportedDevices;
-      withQuesta = true;
-      # an x86_64 unstick can't load its seccomp filter when translated, so use the native one
-      inherit (pkgs) unstick;
-    };
+    unwrapped =
+      (pkgsX86.quartus-prime-lite.unwrapped.override {
+        inherit supportedDevices;
+        withQuesta = true;
+        # an x86_64 unstick can't load its seccomp filter when translated, so use the native one
+        inherit (pkgs) unstick;
+      }).overrideAttrs
+        (old: {
+          # Rosetta in macOS 26 crashes on the x87 instruction ffreep, which these use
+          buildCommand = old.buildCommand + ''
+            for lib in libccl_sqlite3.so libsynth_vrfx2.so; do
+              f=$out/quartus/linux64/$lib
+              chmod u+w $f
+              ${pkgsX86.llvm}/bin/llvm-objdump -d $f | ${pkgsX86.python3}/bin/python3 ${./ffreep.py} $f
+            done
+          '';
+        });
   };
 
   questaLicense = "${home}/.questa/license.dat";
