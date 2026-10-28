@@ -214,23 +214,36 @@ in
     fi
   '';
 
-  systemd.user.services.sof-to-rbf = {
-    description = "Write an .rbf next to every compiled .sof in ~/FPGA";
-    wantedBy = [ "default.target" ];
-    path = [
-      quartus
-      pkgs.inotify-tools
+  systemd.services.sof-to-rbf = {
+    description = "Write an .rbf next to every .sof in ~/FPGA";
+    wantedBy = [ "multi-user.target" ];
+    unitConfig.RequiresMountsFor = [
+      "${home}/FPGA"
+      logDir
     ];
+    path = [ quartus ];
+    # Polls instead of using inotify, which doesn't see files written on the Mac side
+    # (e.g. a .sof copied in with Finder).
     script = ''
-      inotifywait -m -r -e close_write -e moved_to --format '%w%f' --include '\.sof$' ${home}/FPGA |
+      declare -A failed
+      while sleep 5; do
         while read -r sof; do
-          sleep 2
-          quartus_cpf --option=bitstream_compression=off -c "$sof" "''${sof%.sof}.rbf" || true
-        done
+          rbf="''${sof%.sof}.rbf"
+          key="$sof $(stat -c %Y "$sof")"
+          # skip files still being written, and ones that already failed to convert
+          if [ "$sof" -nt "$rbf" ] && [ -z "''${failed[$key]:-}" ] &&
+            [ $(($(date +%s) - $(stat -c %Y "$sof"))) -ge 3 ]; then
+            quartus_cpf --option=bitstream_compression=off -c "$sof" "$rbf" || failed[$key]=1
+          fi
+        done < <(find ${home}/FPGA -name '*.sof')
+      done
     '';
     serviceConfig = {
       Restart = "always";
       RestartSec = 5;
+      User = user;
+      StandardOutput = "append:${logDir}/sof-to-rbf.log";
+      StandardError = "append:${logDir}/sof-to-rbf.log";
     };
   };
 
