@@ -1,7 +1,7 @@
 #!/bin/bash
 # Sets up Quartus Prime Lite (inside a small Linux VM) and a DE0-Nano programmer
 # on an Apple Silicon Mac. Safe to run again if it stops partway.
-set -euo pipefail
+set -Eeuo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG="$HOME/.config/quartus-mac"
@@ -236,7 +236,7 @@ cd "$HOME/.local/share/quartus-vm" || exit 1
 mkdir -p logs
 start=$SECONDS
 ./runner/bin/microvm-run >logs/vm.log 2>&1
-# Quartus closes the VM when it exits, so a VM that ends right away means it didn't start
+# Quartus closes the VM when it exits, so a VM that ends right away means it did not start
 if [ $((SECONDS - start)) -lt 60 ]; then
   osascript -e "display alert \"Quartus could not start\" message \"The logs are in the folder that opens next.\""
   open logs
